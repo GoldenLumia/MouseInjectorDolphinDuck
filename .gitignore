@@ -1,5 +1,7 @@
 obj/
 .vscode/
+.idea/
+wiptables/
 *.exe
 mouseinjector.ini
 *.zip
