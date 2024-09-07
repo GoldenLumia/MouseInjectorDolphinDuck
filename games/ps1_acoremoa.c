@@ -28,7 +28,7 @@
 //#define ACMOA_ARENA_CAMX 0x1D1D32 // TODO: Update value from PP
 //#define ACMOA_ARENA_CAMX_SANITY 0x1D1D20 // TODO: Update value from PP
 //#define ACMOA_ARENA_CAMX_SANITY_VALUE 0x801D1CC8 // TODO: Update value from PP
-//#define ACMOA_IS_NOT_BUSY 0x1A7FAC // TODO: Update value from PP
+#define ACMOA_IS_NOT_BUSY 0x1BA72C
 #define ACMOA_IS_NOT_PAUSED 0x3E720
 //#define ACMOA_IS_MAP_OPEN 0x1555EB // TODO: Update value from PP
 //#define ACMOA_IS_ABORT_PROMPT 0x1FE06C
@@ -65,6 +65,9 @@ static uint8_t PS1_ACMOA_Status(void)
 //==========================================================================
 static void PS1_ACMOA_Inject(void)
 {
+	if (!PS1_MEM_ReadByte(ACMOA_IS_NOT_BUSY))
+		return;
+
 	if (!PS1_MEM_ReadByte(ACMOA_IS_NOT_PAUSED))
 		return;
 
