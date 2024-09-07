@@ -31,7 +31,7 @@
 #define ACMOA_IS_NOT_BUSY 0x1BA72C
 #define ACMOA_IS_NOT_PAUSED 0x3E720
 //#define ACMOA_IS_MAP_OPEN 0x1555EB // TODO: Update value from PP
-//#define ACMOA_IS_ABORT_PROMPT 0x1FE06C
+//#define ACMOA_IS_ABORT_PROMPT 0x1FE06C // TODO: Update value from PP
 
 static uint8_t PS1_ACMOA_Status(void);
 static void PS1_ACMOA_Inject(void);
