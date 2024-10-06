@@ -54,10 +54,12 @@ static float yAccumulator = 0.f;
 //==========================================================================
 static uint8_t PS1_ACMOA_Status(void)
 {
-	// SLUS_010.30
-	return (PS1_MEM_ReadWord(0x928C) == 0x534C5553U &&
+	return (PS1_MEM_ReadWord(0x928C) == 0x534C5553U && // SLUS_010.30 (Disc 1)
 			PS1_MEM_ReadWord(0x9290) == 0x5F303130U &&
-			PS1_MEM_ReadWord(0x9294) == 0x2E33303BU);
+			PS1_MEM_ReadWord(0x9294) == 0x2E33303BU) ||
+			(PS1_MEM_ReadWord(0x928C) == 0x534C5553U &&  // SLUS_010.81 (Disc 2)
+			PS1_MEM_ReadWord(0x9290) == 0x5F303130U &&
+			PS1_MEM_ReadWord(0x9294) == 0x2E38313BU);
 }
 //==========================================================================
 // Purpose: calculate mouse look and inject into current game
