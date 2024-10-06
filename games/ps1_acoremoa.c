@@ -25,13 +25,12 @@
 
 #define ACMOA_CAMY 0x453B0
 #define ACMOA_CAMX 0x1E725A
-//#define ACMOA_ARENA_CAMX 0x1D1D32 // TODO: Update value from PP
-//#define ACMOA_ARENA_CAMX_SANITY 0x1D1D20 // TODO: Update value from PP
-//#define ACMOA_ARENA_CAMX_SANITY_VALUE 0x801D1CC8 // TODO: Update value from PP
+#define ACMOA_ARENA_CAMX 0x1D8C1A
+#define ACMOA_ARENA_CAMX_SANITY 0x1D8BAC
+#define ACMOA_ARENA_CAMX_SANITY_VALUE 0x801D91F4
 #define ACMOA_IS_NOT_BUSY 0x1BA72C
 #define ACMOA_IS_NOT_PAUSED 0x3E720
-//#define ACMOA_IS_MAP_OPEN 0x1555EB // TODO: Update value from PP
-//#define ACMOA_IS_ABORT_PROMPT 0x1FE06C // TODO: Update value from PP
+#define ACMOA_IS_MAP_OPEN 0x15DD6B
 
 static uint8_t PS1_ACMOA_Status(void);
 static void PS1_ACMOA_Inject(void);
@@ -65,16 +64,29 @@ static uint8_t PS1_ACMOA_Status(void)
 //==========================================================================
 static void PS1_ACMOA_Inject(void)
 {
-	if (!PS1_MEM_ReadByte(ACMOA_IS_NOT_BUSY))
+	uint8_t isArena = 0;
+	if (PS1_MEM_ReadUInt(ACMOA_ARENA_CAMX_SANITY) == ACMOA_ARENA_CAMX_SANITY_VALUE)
+		isArena = 1;
+
+	if (!PS1_MEM_ReadByte(ACMOA_IS_NOT_BUSY) && !isArena)
 		return;
 
 	if (!PS1_MEM_ReadByte(ACMOA_IS_NOT_PAUSED))
 		return;
 
+	// phantsmas map_open is primarly 0 and 9, but 1 in between certain load triggers (assumption)
+	// looking for specifically 9 might be a bad idea but f@#k it we 9ball
+	if (PS1_MEM_ReadByte(ACMOA_IS_MAP_OPEN) == 0x9 && !isArena)
+		return;
+
 	if(xmouse == 0 && ymouse == 0) // if mouse is idle
 		return;
 	
-	uint16_t camX = PS1_MEM_ReadHalfword(ACMOA_CAMX);
+	uint16_t camX;
+	if (isArena)
+		camX = PS1_MEM_ReadHalfword(ACMOA_ARENA_CAMX);
+	else
+		camX = PS1_MEM_ReadHalfword(ACMOA_CAMX);
 	uint16_t camY = PS1_MEM_ReadHalfword(ACMOA_CAMY);
 	float camXF = (float)camX;
 	float camYF = (float)camY;
@@ -89,6 +101,9 @@ static void PS1_ACMOA_Inject(void)
 	float dy = ym * looksensitivity * scale;
 	AccumulateAddRemainder(&camYF, &yAccumulator, ym, dy);
 
-	PS1_MEM_WriteHalfword(ACMOA_CAMX, (uint16_t)camXF);
+	if (isArena)
+		PS1_MEM_WriteHalfword(ACMOA_ARENA_CAMX, (uint16_t)camXF);
+	else
+		PS1_MEM_WriteHalfword(ACMOA_CAMX, (uint16_t)camXF);
 	PS1_MEM_WriteHalfword(ACMOA_CAMY, (uint16_t)camYF);
 }
