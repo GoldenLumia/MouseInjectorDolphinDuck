@@ -23,7 +23,7 @@
 #include <tlhelp32.h>
 #include <psapi.h>
 #include <tchar.h>
-#include <inttypes.h>
+#include <inttypes.h> // hex conversion for memory debug
 #include "main.h"
 #include "memory.h"
 
@@ -111,9 +111,8 @@ void PS2_MEM_WriteUInt(const uint32_t addr, uint32_t value);
 void PS2_MEM_WriteUInt16(const uint32_t addr, uint16_t value);
 void PS2_MEM_WriteInt16(const uint32_t addr, int16_t value);
 void PS2_MEM_WriteFloat(const uint32_t addr, float value);
-
-char PS2_EXE_Name[64];
 DWORD Process_ID = 0;
+char PS2_EXE_Name[64];
 FARPROC RemoteAddress(HANDLE hProc, HMODULE hMod, const char* procName);
 HMODULE RemoteHandle(DWORD ProcessPID, const TCHAR* modName);
 
@@ -205,49 +204,49 @@ uint8_t MEM_Init(void)
 			emuhandle = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, FALSE, pe32.th32ProcessID);
 			break;
 		}
-		// condense all pcsx2 checks down to one
 		const char* pcsx2Executables[] = {"pcsx2-qtx64-avx2.exe","pcsx2-qtx64.exe","pcsx2-qt.exe"};
 		size_t numExecutables = sizeof(pcsx2Executables) / sizeof(pcsx2Executables[0]);
 		for (size_t i = 0; i < numExecutables; ++i) {
-    		if (strcmp(pe32.szExeFile, pcsx2Executables[i]) == 0) {
-        		strncpy(hookedEmulatorName, pcsx2Executables[i], strlen(pcsx2Executables[i]) - 4);
-        		hookedEmulatorName[strlen(pcsx2Executables[i]) - 4] = '\0';
+			if (strcmp(pe32.szExeFile, pcsx2Executables[i]) == 0) {
+				strncpy(hookedEmulatorName, pcsx2Executables[i], strlen(pcsx2Executables[i]) - 4);
+				hookedEmulatorName[strlen(pcsx2Executables[i]) - 4] = '\0';
 			isPcsx2handle = 1;
-        	emuhandle = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, FALSE, pe32.th32ProcessID);
+			emuhandle = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, FALSE, pe32.th32ProcessID);
 			Process_ID = pe32.th32ProcessID;
 			strncpy(PS2_EXE_Name, pe32.szExeFile, sizeof(PS2_EXE_Name) - 1);
-        	break;
-    		}
+			break;
+			}
 		}
-		if(strcmp(pe32.szExeFile, "flycast.exe") == 0) 
+
+		if(strcmp(pe32.szExeFile, "flycast.exe") == 0)
 		{
 			strcpy(hookedEmulatorName, "Flycast");
 			isFlycastHandle = 1;
 			emuhandle = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, FALSE, pe32.th32ProcessID);
 			break;
 		}
-		if(strcmp(pe32.szExeFile, "rpcs3.exe") == 0) 
+		if(strcmp(pe32.szExeFile, "rpcs3.exe") == 0)
 		{
 			strcpy(hookedEmulatorName, "RPCS3");
 			isRPCS3Handle = 1;
 			emuhandle = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, FALSE, pe32.th32ProcessID);
 			break;
 		}
-		if(strcmp(pe32.szExeFile, "PPSSPPWindows.exe") == 0 || strcmp(pe32.szExeFile, "PPSSPPWindows64.exe") == 0) 
+		if(strcmp(pe32.szExeFile, "PPSSPPWindows.exe") == 0 || strcmp(pe32.szExeFile, "PPSSPPWindows64.exe") == 0)
 		{
 			strcpy(hookedEmulatorName, "PPSSPP");
 			isPPSSPPHandle = 1;
 			emuhandle = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, FALSE, pe32.th32ProcessID);
 			break;
 		}
-		if(strcmp(pe32.szExeFile, "NO$PSX.EXE") == 0) 
+		if(strcmp(pe32.szExeFile, "NO$PSX.EXE") == 0)
 		{
 			strcpy(hookedEmulatorName, "NO$PSX");
 			isNOMONEYPSXHandle = 1;
 			emuhandle = OpenProcess(PROCESS_VM_OPERATION | PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, FALSE, pe32.th32ProcessID);
 			break;
 		}
-		if(strcmp(pe32.szExeFile, "Project64.exe") == 0) 
+		if(strcmp(pe32.szExeFile, "Project64.exe") == 0)
 		{
 			strcpy(hookedEmulatorName, "Project64");
 			isProject64Handle = 1;
@@ -285,45 +284,92 @@ uint8_t MEM_FindRamOffset(void)
 
 	//--------------------Duckstation RAM export pointer-----------------------
 	if (isPS1handle == 1) {
-    	const TCHAR* processName = "duckstation-qt-x64-ReleaseLTCG.exe";
-    	const TCHAR* moduleName = processName;
-    	const char* symbol = "RAM";
+		const char* processName = "duckstation-qt-x64-ReleaseLTCG.exe";
+		const char* moduleName = processName;
+		const char* symbol = "RAM";
 
-    	HANDLE snapshot = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, Process_ID);
-    	HMODULE hMod = RemoteHandle(Process_ID, moduleName);
+		printf("Scanning memory.\n");
+		HANDLE snapshot = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, Process_ID);
+		HMODULE hMod = RemoteHandle(Process_ID, moduleName);
 		if (!hMod) {
-    		return;
+			return;
 		}
+
 		FARPROC addr = RemoteAddress(snapshot, hMod, symbol);
-    	CloseHandle(snapshot);
-    	if (addr != 0) {
-        	uint64_t pointerAddress = addr;
-        	uint64_t foundValue;
-        	ReadProcessMemory(emuhandle, (LPCVOID)pointerAddress, &foundValue, sizeof(foundValue), NULL);
-            emuoffset = foundValue;
-   		}
+		CloseHandle(snapshot);
+
+		if (addr != 0) {
+			uint64_t pointerAddress = addr;
+			uint64_t foundValue;
+			ReadProcessMemory(emuhandle, (LPCVOID)pointerAddress, &foundValue, sizeof(foundValue), NULL);
+			emuoffset = foundValue;
+		}
 	}
-	//--------------------PCSX2 RAM export pointer-----------------------
+	//-----------------------------------------------------------------------
+	//--------------------PCSX2 RAM export pointer---------------------------
+	//Using EEmem address causes some sort out of sync value updating in some games, only in CoD: FH?, seems like a PCSX2 thing or something with the injector?? -> use of a pointer to a different copy of PS2 virtual memory (hotfixed below)
 	if (isPcsx2handle == 1) {
-    	const TCHAR* processName = PS2_EXE_Name;
-    	const TCHAR* moduleName = processName;
-    	const char* symbol = "EEmem";
+		const char* processName = PS2_EXE_Name;
+		const char* moduleName = processName;
+		const char* symbol = "EEmem";
+		int chunk_size = 4096; //mem region size
 
-    	HANDLE snapshot = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, Process_ID);
-    	HMODULE hMod = RemoteHandle(Process_ID, moduleName);
+		HANDLE snapshot = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, Process_ID);
+		HMODULE hMod = RemoteHandle(Process_ID, moduleName);
+
 		if (!hMod) {
-    		return;
+			return;
 		}
+
 		FARPROC addr = RemoteAddress(snapshot, hMod, symbol);
-    	CloseHandle(snapshot);
-    	DWORD_PTR offset = 0x1C8E230;
+		CloseHandle(snapshot);
+		//search from EEmem SLUS string offset to different copy of virtual PS2 RAM
 		uint64_t PS2_Address = addr;
-    	if (addr != 0) {
-        	DWORD_PTR pointerAddress = PS2_Address + offset;
-        	uint64_t foundValue;
-        	ReadProcessMemory(emuhandle, (LPCVOID)pointerAddress, &foundValue, sizeof(foundValue), NULL);
-            emuoffset = foundValue;
-   		}
+		if (addr != 0) {
+			uint64_t pointerAddress = addr;
+			uint64_t EEmem;
+			uint64_t AddressCopy;
+			uint64_t OtherCopyBase;
+			BYTE* buffer;
+			SIZE_T bytesRead;
+			LPCVOID address = 0;
+
+			ReadProcessMemory(emuhandle, (LPCVOID)pointerAddress, &EEmem, sizeof(EEmem), NULL); //EEmem is now set > offset this by 0x100000 > load up a chunk of data > loop to find ram copy that does not cause issues with injector, substract the 0x100000 and set emuoffset
+
+			BYTE* chunk = (BYTE*)malloc(chunk_size);
+			if (!chunk) {
+				return;
+			}
+
+			uint64_t offset = EEmem + 0x100000; //use an offset where the gamecode is
+			LPCVOID remotePtr = (LPCVOID)offset;
+			ReadProcessMemory(emuhandle, remotePtr, chunk, chunk_size, &bytesRead); // array gets loaded up correctly
+
+			printf("Scanning memory.\n");
+			while (VirtualQueryEx(emuhandle, address, &info, sizeof(info)) && info.RegionSize > 0) { //memory scan loop
+				if (info.State == MEM_COMMIT && (info.Protect == PAGE_READONLY || info.Protect == PAGE_READWRITE)) {
+					buffer = (BYTE*)malloc(info.RegionSize);
+					if (buffer && ReadProcessMemory(emuhandle, info.BaseAddress, buffer, info.RegionSize, &bytesRead)) {
+						for (SIZE_T i = 0; i <= bytesRead - chunk_size; i++) {
+							if (memcmp(buffer + i, chunk, chunk_size) == 0) { // if found match, exit, break out of the nested loop on the first match, will find EEmem if it wont find other memory
+								AddressCopy = (uint64_t*)((BYTE*)info.BaseAddress + i);
+								goto breakout;
+							}
+						}
+					}
+				}
+				address = (BYTE*)info.BaseAddress + info.RegionSize;
+			}
+
+			breakout:
+			free(chunk);// free the memory
+			free(buffer);
+
+			OtherCopyBase = AddressCopy - 0x100000;
+			emuoffset = OtherCopyBase;
+
+			// TODO: check the hotfix, clean up the code etc, remove the ridiculous printfs and code in normal debug page, and maybe some simple ui
+		}
 	}
 	//------------------------------------------------------------------------
 
@@ -394,17 +440,17 @@ uint8_t MEM_FindRamOffset(void)
 			}
 			else if (strstr(bizHawkTitle, "Genesis") != NULL) {
 				strcpy(hookedEmulatorName, "BizHawk Genesis");
-				emuRegionSize = 0xE3000; 	// BizHawk 2.8 
+				emuRegionSize = 0xE3000; 	// BizHawk 2.8
 				isBizHawkGenesisHandle = 1;
 			}
 			else if (strstr(bizHawkTitle, "Saturn") != NULL) {
 				strcpy(hookedEmulatorName, "BizHawk Saturn");
-				emuRegionSize = 0x282000; 	// BizHawk 2.8 
+				emuRegionSize = 0x282000; 	// BizHawk 2.8
 				isBizHawkSaturnHandle = 1;
 			}
 			else if (strstr(bizHawkTitle, "PlayStation") != NULL) {
 				strcpy(hookedEmulatorName, "BizHawk PlayStation");
-				emuRegionSize = 0xD902000; 	// BizHawk 2.8 
+				emuRegionSize = 0xD902000; 	// BizHawk 2.8
 				isBizHawkPlayStationHandle = 1;
 			}
 		}
@@ -456,22 +502,22 @@ uint8_t MEM_FindRamOffset(void)
 				isBSNESMercuryHandle = 1;
 			}
 		}
-		// else if (isPS1handle == 1) {
+		/*else if (isPS1handle == 1) {
 			// emuRegionSize = 0x200000; 		// DuckStation
-			// emuRegionSize = 0x800000;		// DuckStation, newer version 0.1-5943 (unsure which version changed region size)
-		// }
-		else if (isN64handle == 1) {
+			emuRegionSize = 0x800000;		// DuckStation, newer version 0.1-5943 (unsure which version changed region size)
+			// TODO: check version and set region size
+			//		 maybe look for a pointer to the right region and get size from that?
+		}*/ else if (isN64handle == 1) {
 			if (isMupenhandle)
 				emuRegionSize = 0x20011000; // RetroArch(Mupen64Plus core)/simple64/RMG
 			else
 				emuRegionSize = 0x22D0000; 	// BizHawk 2.8 (Mupen64Plus)
 		} else if (isBSNEShandle == 1) {
 			emuRegionSize = 0x34000;
-		} // else if (isPcsx2handle == 1) {
+		} /*else if (isPcsx2handle == 1) {
 			// emuRegionSize = 0x80000;
-			// emuRegionSize = 0x1000;
-		// }
-		else if (isFlycastHandle == 1) {
+			emuRegionSize = 0x1000;
+		}*/ else if (isFlycastHandle == 1) {
 			emuRegionSize = 0x10000;
 		} else if (isMesenHandle == 1) {
 			emuRegionSize = 0x1BF000;
@@ -528,7 +574,7 @@ uint8_t MEM_FindRamOffset(void)
 		uint8_t regionFound = 0;
 		if (info.RegionSize == emuRegionSize && ((info.Type == regionType) || isN64handle))
 			regionFound = 1;
-		
+
 		// if (isBizHawkSNESHandle && !regionFound)
 		// {
 		// 	if (info.Type == regionType)
@@ -602,15 +648,15 @@ uint8_t MEM_FindRamOffset(void)
 						}
 					} else if (isBSNEShandle == 1) {
 						emuoffset += 0x2D7C; // WRAM always here? 0xB14000 + 0x2D7C, but region size is not fixed
-					} // else if (isPcsx2handle == 1) {
+					} /*else if (isPcsx2handle == 1) {
 						// check if region before 0x80000 has a size in a range, 0x1000 <= regionsize <= 0xF000
 						// if (lastRegionSize != 0x80000 || lastlastRegionSize != 0x1000)
-						// if (lastRegionSize != 0x80000 || lastlastRegionSize > 0xF000)
-							// continue;
+						if (lastRegionSize != 0x80000 || lastlastRegionSize > 0xF000)
+							continue;
 					// } else if (isPPSSPPHandle) {
 					// 	if (lastRegionSize != 0x3800000 && lastlastRegionSize != 0x200000)
 					// 		continue;
-					// }
+					}*/
 
 					// printdebug(lastRegionSize); // debug
 					// printdebug(info.RegionSize); // debug
@@ -998,6 +1044,7 @@ void SNES_MEM_WriteWord(const uint32_t addr, uint16_t value) // 16bit word
 		return;
 	WriteProcessMemory(emuhandle, (LPVOID)(emuoffset + addr), &value, sizeof(value), NULL);
 }
+
 uint32_t PS2_MEM_ReadPointer(const uint32_t addr)
 {
 	if(!emuoffset || PS2NOTWITHINMEMRANGE(addr))
@@ -1042,17 +1089,16 @@ uint32_t PS2_MEM_ReadUInt16(const uint32_t addr)
 
 int16_t PS2_MEM_ReadInt16(const uint32_t addr)
 {
-	if(!emuoffset || PS2NOTWITHINMEMRANGE(addr)) // if ps2 memory has not been init by emulator or reading from outside of memory range
+	if(!emuoffset || PS2NOTWITHINMEMRANGE(addr))
 		return 0;
 	int16_t output; // temp var used for output of function
 	ReadProcessMemory(emuhandle, (LPVOID)(emuoffset + addr), &output, sizeof(output), NULL);
-	// printdebug(1); // debug
 	return output;
 }
 
 uint8_t PS2_MEM_ReadUInt8(const uint32_t addr)
 {
-	if(!emuoffset || PS2NOTWITHINMEMRANGE(addr)) // if ps2 memory has not been init by emulator or reading from outside of memory range
+	if(!emuoffset || PS2NOTWITHINMEMRANGE(addr))
 		return 0;
 	uint8_t output; // temp var used for output of function
 	ReadProcessMemory(emuhandle, (LPVOID)(emuoffset + addr), &output, sizeof(output), NULL);
@@ -1062,7 +1108,7 @@ uint8_t PS2_MEM_ReadUInt8(const uint32_t addr)
 
 float PS2_MEM_ReadFloat(const uint32_t addr)
 {
-	if(!emuoffset || PS2NOTWITHINMEMRANGE(addr)) 
+	if(!emuoffset || PS2NOTWITHINMEMRANGE(addr))
 		return 0;
 	float output; // temp var used for output of function
 	ReadProcessMemory(emuhandle, (LPVOID)(emuoffset + addr), &output, sizeof(output), NULL);
@@ -1102,7 +1148,7 @@ void PS2_MEM_WriteInt16(const uint32_t addr, int16_t value)
 
 void PS2_MEM_WriteFloat(const uint32_t addr, float value)
 {
-	if(!emuoffset || PS2NOTWITHINMEMRANGE(addr)) 
+	if(!emuoffset || PS2NOTWITHINMEMRANGE(addr))
 		return;
 	// MEM_ByteSwap32((uint32_t *)&value); // byteswap
 	WriteProcessMemory(emuhandle, (LPVOID)(emuoffset + addr), &value, sizeof(value), NULL);
@@ -1114,7 +1160,7 @@ void PS2_MEM_WriteFloat(const uint32_t addr, float value)
 // =================================================
 uint32_t SD_MEM_ReadWord(const uint32_t addr)
 {
-	if(!emuoffset || PS2NOTWITHINMEMRANGE(addr)) 
+	if(!emuoffset || PS2NOTWITHINMEMRANGE(addr))
 		return 0;
 	uint32_t output; // temp var used for output of function
 	ReadProcessMemory(emuhandle, (LPVOID)(emuoffset + addr), &output, sizeof(output), NULL);
@@ -1125,7 +1171,7 @@ uint32_t SD_MEM_ReadWord(const uint32_t addr)
 
 float SD_MEM_ReadFloat(const uint32_t addr)
 {
-	if(!emuoffset || PS2NOTWITHINMEMRANGE(addr)) 
+	if(!emuoffset || PS2NOTWITHINMEMRANGE(addr))
 		return 0;
 	float output; // temp var used for output of function
 	ReadProcessMemory(emuhandle, (LPVOID)(emuoffset + addr), &output, sizeof(output), NULL);
@@ -1184,7 +1230,7 @@ float PS3_MEM_ReadFloat(const uint32_t addr)
 
 void PS3_MEM_WriteFloat(const uint32_t addr, float value)
 {
-	if(!emuoffset || PS3NOTWITHINMEMRANGE(addr)) 
+	if(!emuoffset || PS3NOTWITHINMEMRANGE(addr))
 		return;
 	MEM_ByteSwap32((uint32_t *)&value); // byteswap
 	WriteProcessMemory(emuhandle, (LPVOID)(emuoffset + addr), &value, sizeof(value), NULL);
@@ -1229,7 +1275,7 @@ uint16_t PSP_MEM_ReadUInt16(const uint32_t addr)
 
 float PSP_MEM_ReadFloat(const uint32_t addr)
 {
-	if(!emuoffset || PSPNOTWITHINMEMRANGE(addr)) 
+	if(!emuoffset || PSPNOTWITHINMEMRANGE(addr))
 		return 0;
 	float output; // temp var used for output of function
 	ReadProcessMemory(emuhandle, (LPVOID)(emuoffset + addr), &output, sizeof(output), NULL);
@@ -1254,18 +1300,18 @@ void PSP_MEM_WriteFloat(const uint32_t addr, float value)
 
 void printdebug(uint64_t val) //hexadecimal addresses debug
 {
-    FILE *fp;
+	FILE *fp;
 
-    fp = fopen("test.txt", "w");
-    if (fp != NULL) {
-        char output[255];
-        sprintf(output, "0x%" PRIx64, val);
-        fprintf(fp, "%s", output);
+	fp = fopen("test.txt", "w");
+	if (fp != NULL) {
+		char output[255];
+		sprintf(output, "0x%" PRIx64, val);
+		fprintf(fp, "%s", output);
 
-        fclose(fp);
-    } else {
-        perror("Failed to open file");
-    }
+		fclose(fp);
+	} else {
+	perror("Failed to open file");
+	}
 }
 
 // =============================================================================================================================
@@ -1273,53 +1319,54 @@ void printdebug(uint64_t val) //hexadecimal addresses debug
 // =============================================================================================================================
 HMODULE RemoteHandle(DWORD Process_ID, const TCHAR* modName) {
 	HMODULE hMods[1024];
-    DWORD cbNeeded;
+	DWORD cbNeeded;
 
-    HANDLE snapshot = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, Process_ID); //well this needs to be different for duckstation
-    if (!snapshot) return NULL;
-    if (EnumProcessModulesEx(snapshot, hMods, sizeof(hMods), &cbNeeded, LIST_MODULES_ALL)) {
-        for (unsigned int i = 0; i < (cbNeeded / sizeof(HMODULE)); i++) {
-            TCHAR szModName[MAX_PATH];
-            if (GetModuleBaseName(snapshot, hMods[i], szModName, sizeof(szModName) / sizeof(TCHAR))) {
-                if (_tcscmp(szModName, modName) == 0) {
-                    CloseHandle(snapshot);
-                    return hMods[i];
-                }
-            }
-        }
-    }
-    CloseHandle(snapshot);
-    return NULL;
+	HANDLE snapshot = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, Process_ID);
+	if (!snapshot) return NULL;
+	if (EnumProcessModulesEx(snapshot, hMods, sizeof(hMods), &cbNeeded, LIST_MODULES_ALL)) {
+		for (unsigned int i = 0; i < (cbNeeded / sizeof(HMODULE)); i++) {
+			TCHAR szModName[MAX_PATH];
+			if (GetModuleBaseName(snapshot, hMods[i], szModName, sizeof(szModName) / sizeof(TCHAR))) {
+				if (_tcscmp(szModName, modName) == 0) {
+					CloseHandle(snapshot);
+					return hMods[i];
+				}
+			}
+		}
+	}
+	CloseHandle(snapshot);
+	return NULL;
 }
+
 FARPROC RemoteAddress(HANDLE snapshot, HMODULE hMod, const char* procName) {
-    BYTE* base = (BYTE*)hMod;
-    IMAGE_DOS_HEADER dosHeader;
-    IMAGE_NT_HEADERS ntHeaders;
-    IMAGE_EXPORT_DIRECTORY expDir;
+	BYTE* base = (BYTE*)hMod;
+	IMAGE_DOS_HEADER dosHeader;
+	IMAGE_NT_HEADERS ntHeaders;
+	IMAGE_EXPORT_DIRECTORY expDir;
 
-    if (!ReadProcessMemory(snapshot, base, &dosHeader, sizeof(dosHeader), NULL)) return NULL; // Reads DOS header of the module
-    if (!ReadProcessMemory(snapshot, base + dosHeader.e_lfanew, &ntHeaders, sizeof(ntHeaders), NULL)) return NULL; // Reads the PE header
-    if (!ReadProcessMemory(snapshot, base + ntHeaders.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress, &expDir, sizeof(expDir), NULL)) return NULL; //Reads the exported directory
+	if (!ReadProcessMemory(snapshot, base, &dosHeader, sizeof(dosHeader), NULL)) return NULL; // Reads DOS header of the module
+	if (!ReadProcessMemory(snapshot, base + dosHeader.e_lfanew, &ntHeaders, sizeof(ntHeaders), NULL)) return NULL; // Reads the PE header
+	if (!ReadProcessMemory(snapshot, base + ntHeaders.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress, &expDir, sizeof(expDir), NULL)) return NULL; //Reads the exported directory
 
-    DWORD* funcs = (DWORD*)malloc(expDir.NumberOfFunctions * sizeof(DWORD));
-    DWORD* names = (DWORD*)malloc(expDir.NumberOfNames * sizeof(DWORD));
-    WORD* ordinals = (WORD*)malloc(expDir.NumberOfNames * sizeof(WORD));
-    if (!ReadProcessMemory(snapshot, base + expDir.AddressOfFunctions, funcs, expDir.NumberOfFunctions * sizeof(DWORD), NULL)) return NULL;
-    if (!ReadProcessMemory(snapshot, base + expDir.AddressOfNames, names, expDir.NumberOfNames * sizeof(DWORD), NULL)) return NULL;
-    if (!ReadProcessMemory(snapshot, base + expDir.AddressOfNameOrdinals, ordinals, expDir.NumberOfNames * sizeof(WORD), NULL)) return NULL;
+	DWORD* funcs = (DWORD*)malloc(expDir.NumberOfFunctions * sizeof(DWORD));
+	DWORD* names = (DWORD*)malloc(expDir.NumberOfNames * sizeof(DWORD));
+	WORD* ordinals = (WORD*)malloc(expDir.NumberOfNames * sizeof(WORD));
+	if (!ReadProcessMemory(snapshot, base + expDir.AddressOfFunctions, funcs, expDir.NumberOfFunctions * sizeof(DWORD), NULL)) return NULL;
+	if (!ReadProcessMemory(snapshot, base + expDir.AddressOfNames, names, expDir.NumberOfNames * sizeof(DWORD), NULL)) return NULL;
+	if (!ReadProcessMemory(snapshot, base + expDir.AddressOfNameOrdinals, ordinals, expDir.NumberOfNames * sizeof(WORD), NULL)) return NULL;
 
-    FARPROC addr = NULL;
-    for (DWORD i = 0; i < expDir.NumberOfNames; i++) {
-        char funcName[256];
-        if (ReadProcessMemory(snapshot, base + names[i], funcName, sizeof(funcName), NULL) && strcmp(funcName, procName) == 0) {
-            addr = (FARPROC)(base + funcs[ordinals[i]]);
-            break;
-        }
-    }
+	FARPROC addr = NULL;
+	for (DWORD i = 0; i < expDir.NumberOfNames; i++) {
+		char funcName[256];
+		if (ReadProcessMemory(snapshot, base + names[i], funcName, sizeof(funcName), NULL) && strcmp(funcName, procName) == 0) {
+			addr = (FARPROC)(base + funcs[ordinals[i]]);
+			break;
+		}
+	}
 
-    free(funcs);
+	free(funcs);
 	free(names);
 	free(ordinals);
 
-    return addr;
+	return addr;
 }
