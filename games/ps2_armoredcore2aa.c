@@ -23,17 +23,18 @@
 #include "../mouse.h"
 #include "game.h"
 
-#define PI 3.14159265f // AC2 Previous Value: 0x40490FDB
-#define TAU 6.2831853f // AC2 Previous Value: 0x40C90FDB
+#define PI 3.14159265f
+#define TAU 6.2831853f
 
 #define AC2AA_ROTY 0x306F70 // AC2 Previous Value: 0x2BB920
 #define AC2AA_ROTX 0x306FA4 // AC2 Previous Value: 0x2BB954
 
 #define AC2AA_IS_PAUSED 0x2FD420 // AC2 Previous Value: 0x2B6900
-#define AC2AA_IS_PAUSED_TRUE 0xFF010000
+#define AC2AA_IS_PAUSED_TRUE 0xFF010000 // 0x2FD420 = 511
 
-// Since the first mission in Another Age isn't a cutscene, we'll likely need to search for this later
-// #define AC2AA_IS_IN_GAME_CUTSCENE 0x000000 // AC2 Previous Value: 0x2B68EC
+// Needs more testing, other offsets to test if this fails:
+// 0x459CD4 (this is probably IsTextBoxOpen or similar since it flips at the start and end of training)
+#define AC2AA_IS_IN_GAME_CUTSCENE 0x2FD40C // AC2 Previous Value: 0x2B68EC
 
 // The offset 0x1C14A14 is closer in memory to the original AC2 value, but its further up in memory than the AC2 value
 // Additionally, this offset does not flip to 1 when paused, only while map is displayed
