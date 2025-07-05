@@ -26,25 +26,23 @@
 #define PI 3.14159265f
 #define TAU 6.2831853f
 
-#define AC2AA_ROTY 0x306F70 // AC2 Previous Value: 0x2BB920
-#define AC2AA_ROTX 0x306FA4 // AC2 Previous Value: 0x2BB954
+#define AC2AA_ROTY 0x306F70
+#define AC2AA_ROTX 0x306FA4
 
-#define AC2AA_IS_PAUSED 0x2FD420 // AC2 Previous Value: 0x2B6900
+#define AC2AA_IS_PAUSED 0x2FD420
 #define AC2AA_IS_PAUSED_TRUE 0xFF010000 // 0x2FD420 = 511
 
 // Needs more testing, other offsets to test if this fails:
-// 0x459CD4 (this is probably IsTextBoxOpen or similar since it flips at the start and end of training)
-#define AC2AA_IS_IN_GAME_CUTSCENE 0x2FD40C // AC2 Previous Value: 0x2B68EC
+// 0x459CD4 (this is probably more closely related to the
+// text box or similar since it flips at the start and end of training too)
+#define AC2AA_IS_IN_GAME_CUTSCENE 0x2FD40C
 
-// The offset 0x1C14A14 is closer in memory to the original AC2 value, but its further up in memory than the AC2 value
-// Additionally, this offset does not flip to 1 when paused, only while map is displayed
-// This value does change while in the main menu, but in-game its overall better than the other offset
-#define AC2AA_IS_MAP_DISPLAYED 0x1FFF68C // AC2 Previous Value: 0x1C7D624
+// UPDATE: all the other offsets flip when the AC boosts or smth, this is the only stable offset lol
+#define AC2AA_IS_MAP_DISPLAYED 0x1C14A14
 
 // No reason to assume this won't work, but there are backup offsets to check if this fails testing:
 // 0x3A5740
-// 0x3A5940
-#define AC2AA_IS_NOT_IN_MENU 0x346688 // AC2 Previous Value: 0x2D4D00
+#define AC2AA_IS_NOT_IN_MENU 0x3A5940
 
 static uint8_t PS2_AC2AA_Status(void);
 static void PS2_AC2AA_Inject(void);
@@ -88,11 +86,10 @@ static void PS2_AC2AA_Inject(void)
     if (PS2_MEM_ReadWord(AC2AA_IS_PAUSED) == AC2AA_IS_PAUSED_TRUE)
         return;
 
-    // disabled pending fix
-    //if (PS2_MEM_ReadWord(AC2AA_IS_IN_GAME_CUTSCENE))
-    //    return;
+    if (PS2_MEM_ReadWord(AC2AA_IS_IN_GAME_CUTSCENE))
+        return;
 
-    if (PS2_MEM_ReadUInt(AC2AA_IS_MAP_DISPLAYED))
+    if (PS2_MEM_ReadWord(AC2AA_IS_MAP_DISPLAYED))
         return;
 
     float rotX = PS2_MEM_ReadFloat(AC2AA_ROTX);
