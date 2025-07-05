@@ -26,21 +26,31 @@
 #define PI 3.14159265f // AC2 Previous Value: 0x40490FDB
 #define TAU 6.2831853f // AC2 Previous Value: 0x40C90FDB
 
-#define AC2AA_ROTY 0x000000 // AC2 Previous Value: 0x2BB920
-#define AC2AA_ROTX 0x000000 // AC2 Previous Value: 0x2BB954
+#define AC2AA_ROTY 0x306F70 // AC2 Previous Value: 0x2BB920
+#define AC2AA_ROTX 0x306FA4 // AC2 Previous Value: 0x2BB954
 
-#define AC2AA_IS_PAUSED 0x000000 // AC2 Previous Value: 0x2B6900
-#define AC2AA_IS_PAUSED_TRUE 0x00000000 // AC2 Previous Value: 0xFF010000
-#define AC2AA_IS_IN_GAME_CUTSCENE 0x000000 // AC2 Previous Value: 0x2B68EC
-#define AC2AA_IS_MAP_DISPLAYED 0x0000000 // AC2 Previous Value: 0x1C7D624
-#define AC2AA_IS_NOT_IN_MENU 0x000000 // AC2 Previous Value: 0x2D4D00
+#define AC2AA_IS_PAUSED 0x3020A4 // AC2 Previous Value: 0x2B6900
+#define AC2AA_IS_PAUSED_TRUE 0xFF010000 // AC2 Previous Value: 0xFF010000
+
+// Since the first mission in Another Age isn't a cutscene, we'll likely need to search for this later
+// #define AC2AA_IS_IN_GAME_CUTSCENE 0x000000 // AC2 Previous Value: 0x2B68EC
+
+// The offset 0x1C14A14 is closer in memory to the original AC2 value, but its further up in memory than the AC2 value
+// Additionally, this offset does not flip to 1 when paused, only while map is displayed
+// Further testing is needed, but this seems like a better offset
+#define AC2AA_IS_MAP_DISPLAYED 0x1FFF68C // AC2 Previous Value: 0x1C7D624
+
+// No reason to assume this won't work, but there are backup offsets to check if this fails testing:
+// 0x3A5740
+// 0x3A5940
+#define AC2AA_IS_NOT_IN_MENU 0x346688 // AC2 Previous Value: 0x2D4D00
 
 static uint8_t PS2_AC2AA_Status(void);
 static void PS2_AC2AA_Inject(void);
 
 static const GAMEDRIVER GAMEDRIVER_INTERFACE =
 {
-    "Armored Core 2",
+    "Armored Core 2: Another Age",
     PS2_AC2AA_Status,
     PS2_AC2AA_Inject,
     1, // 1000 Hz tickrate
@@ -54,12 +64,10 @@ const GAMEDRIVER *GAME_PS2_ARMOREDCORE2AA = &GAMEDRIVER_INTERFACE;
 //==========================================================================
 static uint8_t PS2_AC2AA_Status(void)
 {
-    // 0x00093390 == 0x534C5553U
-    // 0x00093394 == 0x5F323030U
-    // 0x00093398 == 0x2E31343BU
-    return (PS2_MEM_ReadWord(0x00000000) == 0x00000000U &&
-            PS2_MEM_ReadWord(0x00000000) == 0x00000000U &&
-            PS2_MEM_ReadWord(0x00000000) == 0x00000000U);
+    // SLUS_202.49
+    return (PS2_MEM_ReadWord(0x00093390) == 0x534C5553U &&
+            PS2_MEM_ReadWord(0x00093394) == 0x5F323032U &&
+            PS2_MEM_ReadWord(0x00093398) == 0x2E34393BU);
 }
 //==========================================================================
 // Purpose: calculate mouse look and inject into current game
@@ -79,8 +87,9 @@ static void PS2_AC2AA_Inject(void)
     if (PS2_MEM_ReadWord(AC2AA_IS_PAUSED) == AC2AA_IS_PAUSED_TRUE)
         return;
 
-    if (PS2_MEM_ReadWord(AC2AA_IS_IN_GAME_CUTSCENE))
-        return;
+    // disabled pending fix
+    //if (PS2_MEM_ReadWord(AC2AA_IS_IN_GAME_CUTSCENE))
+    //    return;
 
     if (PS2_MEM_ReadUInt(AC2AA_IS_MAP_DISPLAYED))
         return;
