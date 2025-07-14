@@ -40,9 +40,7 @@
 // UPDATE: all the other offsets flip when the AC boosts or smth, this is the only stable offset lol
 #define AC2AA_IS_MAP_DISPLAYED 0x1C14A14
 
-// No reason to assume this won't work, but there are backup offsets to check if this fails testing:
-// 0x3A5740
-#define AC2AA_IS_NOT_IN_MENU 0x3A5940
+#define AC2AA_IS_NOT_IN_MENU 0x1D4DB38
 
 static uint8_t PS2_AC2AA_Status(void);
 static void PS2_AC2AA_Inject(void);
