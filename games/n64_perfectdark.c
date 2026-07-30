@@ -17,6 +17,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, visit http://www.gnu.org/licenses/gpl-2.0.html
 //==========================================================================
+// Credit to terrydaviesjr for Perfect Dark (USA) (Rev 1)
 #include <stdint.h>
 #include <stdio.h>
 #include "../main.h"
